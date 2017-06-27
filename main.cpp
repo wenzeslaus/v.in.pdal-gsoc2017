@@ -1,10 +1,7 @@
 #include <pdal/PointTable.hpp>
 #include <pdal/PointView.hpp>
 #include <pdal/StageFactory.hpp>
-#include <pdal/LasReader.hpp>
-#include <pdal/LasHeader.hpp>
 #include <pdal/Options.hpp>
-#include <pdal/ReprojectionFilter.hpp>
 
 extern "C"
 {
@@ -26,6 +23,8 @@ typedef unsigned long long gpoint_count;
 #else
 typedef unsigned long gpoint_count;
 #endif
+
+// // Note: Double Double Slashes are comments for Code Outline
 
 /* this is plain C but in sync with v.in.lidar */
 static void check_layers_not_equal(int primary, int secondary,
@@ -64,16 +63,16 @@ void pdal_point_to_grass(struct Map_info *output_vector,
     Vect_reset_line(points);
     Vect_reset_cats(cats);
 
-    using namespace pdal::Dimension::Id;
+    // using namespace pdal::Dimension::Id;
     double x = point_view->getFieldAs<double>(X, idx);
     double y = point_view->getFieldAs<double>(Y, idx);
     double z = point_view->getFieldAs<double>(dim_to_use_as_z, idx);
 
     /* TODO: optimize for case with no layers, by adding
-     * and if to skip all the other ifs */
+     * an if to skip all the other ifs */
     if (layers->id_layer) {
         Vect_cat_set(cats, layers->id_layer, cat);
-    }
+    }  /* * /
     if (layers->return_layer) {
         int return_n = point_view->getFieldAs<int>(ReturnNumber, idx);
         int n_returns = point_view->getFieldAs<int>(NumberOfReturns, idx);
@@ -83,7 +82,7 @@ void pdal_point_to_grass(struct Map_info *output_vector,
     if (layers->class_layer) {
         Vect_cat_set(cats, layers->class_layer,
                      point_view->getFieldAs<int>(Classification, idx));
-    }
+    }  /* * /
     if (layers->rgb_layer) {
         int red = point_view->getFieldAs<int>(Red, idx);
         int green = point_view->getFieldAs<int>(Green, idx);
@@ -91,9 +90,9 @@ void pdal_point_to_grass(struct Map_info *output_vector,
         int rgb = red;
         rgb = (rgb << 8) + green;
         rgb = (rgb << 8) + blue;
-        rgb++;  /* cat 0 is not valid, add one */
+        rgb++;  /* cat 0 is not valid, add one * /
         Vect_cat_set(cats, layers->rgb_layer, rgb);
-    }
+    }  /* */
 
     Vect_append_point(points, x, y, z);
     Vect_write_line(output_vector, GV_POINT, points, cats);
@@ -101,15 +100,18 @@ void pdal_point_to_grass(struct Map_info *output_vector,
 
 int main(int argc, char *argv[])
 {
+    // // Preliminaries
     G_gisinit(argv[0]);
 
     GModule *module = G_define_module();
     G_add_keyword(_("vector"));
     G_add_keyword(_("import"));
     G_add_keyword(_("LIDAR"));
+    G_add_keyword(_("PDAL"));
     module->description =
-        _("Converts LAS LiDAR point clouds to a GRASS vector map with PDAL.");
+        _("Converts LAS LiDAR point clouds to a GRASS vector map using PDAL.");
 
+    // // Set up Option* and Flag* values
     Option *in_opt = G_define_standard_option(G_OPT_F_INPUT);
     in_opt->label = _("LAS input file");
     in_opt->description =
@@ -315,6 +317,7 @@ int main(int argc, char *argv[])
     G_option_requires(class_layer_opt, id_layer_opt, nocats_flag, NULL);
     G_option_requires(rgb_layer_opt, id_layer_opt, nocats_flag, NULL);
 
+    // // Parse command line arguments
     if (G_parser(argc, argv))
         return EXIT_FAILURE;
 
@@ -322,6 +325,7 @@ int main(int argc, char *argv[])
         G_fatal_error(_("Input file <%s> does not exist"), in_opt->answer);
     }
 
+    // // Unknown section
     // we use full qualification because the dim ns contains too general names
     pdal::Dimension::Id::Enum dim_to_use_as_z = pdal::Dimension::Id::Z;
 
@@ -380,6 +384,7 @@ int main(int argc, char *argv[])
     bool use_class_filter =
         class_filter_create_from_strings(&class_filter, class_opt->answers);
 
+    // // Prepare PDAL to read input file
     pdal::StageFactory factory;
     std::string pdal_read_driver = factory.inferReaderDriver(in_opt->answer);
     if (pdal_read_driver.empty())
@@ -482,6 +487,7 @@ int main(int argc, char *argv[])
             wkt_projection_mismatch_report(dataset_wkt.c_str());
     }
 
+    // // Start the reading process
     G_important_message(_("Running PDAL algorithms..."));
     pdal::PointViewSet point_view_set = last_stage->execute(point_table);
     pdal::PointViewPtr point_view = *point_view_set.begin();
@@ -527,6 +533,7 @@ int main(int argc, char *argv[])
         }
     }
 
+    // // Create output Vector Map
     G_important_message(_("Scanning points..."));
     struct Map_info output_vector;
 
@@ -563,6 +570,7 @@ int main(int argc, char *argv[])
     int cat = 1;
     bool cat_max_reached = false;
 
+    // // Main Processing Loop
     for (pdal::PointId idx = 0; idx < point_view->size(); ++idx) {
         // TODO: avoid duplication of reading the attributes here and when writing if needed
         double x = point_view->getFieldAs<double>(pdal::Dimension::Id::X, idx);
