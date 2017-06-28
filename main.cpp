@@ -26,6 +26,23 @@ typedef unsigned long gpoint_count;
 
 // // Note: Double Double Slashes are comments for Code Outline
 
+typedef struct {
+    Option *inFile;
+    Option *outFile;
+} CommandOptions;
+
+CommandOptions* setup_all_options() {
+    CommandOptions *allOpts = new CommandOptions();
+
+    allOpts->inFile = G_define_standard_option(G_OPT_F_INPUT);
+    allOpts->inFile->label = _("LAS input file");
+    allOpts->inFile->description =
+        _("LiDAR input files in LAS format (*.las or *.laz)");
+
+    allOpts->outFile = G_define_standard_option(G_OPT_V_OUTPUT);
+
+    return allOpts;
+}
 
 int main(int argc, char *argv[])
 {
@@ -41,12 +58,7 @@ int main(int argc, char *argv[])
         _("Converts LAS LiDAR point clouds to a GRASS vector map using PDAL.");
 
     // // Set up Option* and Flag* values
-    Option *in_opt = G_define_standard_option(G_OPT_F_INPUT);
-    in_opt->label = _("LAS input file");
-    in_opt->description =
-        _("LiDAR input files in LAS format (*.las or *.laz)");
-
-    Option *out_opt = G_define_standard_option(G_OPT_V_OUTPUT);
+    auto options = setup_all_options();
 
     Option *id_layer_opt = G_define_standard_option(G_OPT_V_FIELD);
     id_layer_opt->key = "id_layer";
@@ -250,8 +262,8 @@ int main(int argc, char *argv[])
     if (G_parser(argc, argv))
         return EXIT_FAILURE;
 
-    if (access(in_opt->answer, F_OK) != 0) {
-        G_fatal_error(_("Input file <%s> does not exist"), in_opt->answer);
+    if (access(options->inFile->answer, F_OK) != 0) {
+        G_fatal_error(_("Input file <%s> does not exist"), options->inFile->answer);
     }
 
     // // Unknown section
@@ -313,12 +325,12 @@ int main(int argc, char *argv[])
 
     // // Prepare PDAL to read input file
     pdal::StageFactory factory;
-    std::string pdal_read_driver = factory.inferReaderDriver(in_opt->answer);
+    std::string pdal_read_driver = factory.inferReaderDriver(options->inFile->answer);
     if (pdal_read_driver.empty())
         G_fatal_error("Cannot determine input file type of <%s>",
-                      in_opt->answer);
+                      options->inFile->answer);
 
-    pdal::Option las_opt("filename", in_opt->answer);
+    pdal::Option las_opt("filename", options->inFile->answer);
     pdal::Options las_opts;
     las_opts.add(las_opt);
     // TODO: free reader
@@ -326,7 +338,7 @@ int main(int argc, char *argv[])
     pdal::Stage * reader = factory.createStage(pdal_read_driver);
     if (!reader)
         G_fatal_error("PDAL reader creation failed, a wrong format of <%s>",
-                      in_opt->answer);
+                      options->inFile->answer);
     reader->setOptions(las_opts);
 
     pdal::PointTable point_table;
@@ -359,8 +371,8 @@ int main(int argc, char *argv[])
 
     // the overwrite warning comes quite late in the execution
     // but that's good enough
-    if (Vect_open_new(&output_vector, out_opt->answer, 1) < 0)
-        G_fatal_error(_("Unable to create vector map <%s>"), out_opt->answer);
+    if (Vect_open_new(&output_vector, options->outFile->answer, 1) < 0)
+        G_fatal_error(_("Unable to create vector map <%s>"), options->outFile->answer);
     Vect_hist_command(&output_vector);
 
 
