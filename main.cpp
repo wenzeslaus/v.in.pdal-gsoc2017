@@ -26,77 +26,6 @@ typedef unsigned long gpoint_count;
 
 // // Note: Double Double Slashes are comments for Code Outline
 
-/* this is plain C but in sync with v.in.lidar */
-static void check_layers_not_equal(int primary, int secondary,
-                                   const char *primary_name,
-                                   const char *secondary_name)
-{
-    if (primary && primary == secondary)
-        G_fatal_error(_("Values of %s and %s are the same."
-                        " All categories would be stored only"
-                        " in layer number <%d>"), primary_name,
-                      secondary_name, primary);
-}
-
-static void check_layers_in_list_not_equal(struct Option **options,
-                                           int *values, size_t size)
-{
-    size_t layer_index_1, layer_index_2;
-    for (layer_index_1 = 0; layer_index_1 < size; layer_index_1++) {
-        for (layer_index_2 = 0; layer_index_2 < size; layer_index_2++) {
-            if (layer_index_1 != layer_index_2) {
-                check_layers_not_equal(values[layer_index_1],
-                                       values[layer_index_2],
-                                       options[layer_index_1]->key,
-                                       options[layer_index_2]->key);
-            }
-        }
-    }
-}
-
-void pdal_point_to_grass(struct Map_info *output_vector,
-                         struct line_pnts *points, struct line_cats *cats,
-                         pdal::PointViewPtr point_view, pdal::PointId idx,
-                         struct GLidarLayers *layers, int cat,
-                         pdal::Dimension::Id::Enum dim_to_use_as_z)
-{
-    Vect_reset_line(points);
-    Vect_reset_cats(cats);
-
-    // using namespace pdal::Dimension::Id;
-    double x = point_view->getFieldAs<double>(X, idx);
-    double y = point_view->getFieldAs<double>(Y, idx);
-    double z = point_view->getFieldAs<double>(dim_to_use_as_z, idx);
-
-    /* TODO: optimize for case with no layers, by adding
-     * an if to skip all the other ifs */
-    if (layers->id_layer) {
-        Vect_cat_set(cats, layers->id_layer, cat);
-    }  /* * /
-    if (layers->return_layer) {
-        int return_n = point_view->getFieldAs<int>(ReturnNumber, idx);
-        int n_returns = point_view->getFieldAs<int>(NumberOfReturns, idx);
-        int return_c = return_to_cat(return_n, n_returns);
-        Vect_cat_set(cats, layers->return_layer, return_c);
-    }
-    if (layers->class_layer) {
-        Vect_cat_set(cats, layers->class_layer,
-                     point_view->getFieldAs<int>(Classification, idx));
-    }  /* * /
-    if (layers->rgb_layer) {
-        int red = point_view->getFieldAs<int>(Red, idx);
-        int green = point_view->getFieldAs<int>(Green, idx);
-        int blue = point_view->getFieldAs<int>(Blue, idx);
-        int rgb = red;
-        rgb = (rgb << 8) + green;
-        rgb = (rgb << 8) + blue;
-        rgb++;  /* cat 0 is not valid, add one * /
-        Vect_cat_set(cats, layers->rgb_layer, rgb);
-    }  /* */
-
-    Vect_append_point(points, x, y, z);
-    Vect_write_line(output_vector, GV_POINT, points, cats);
-}
 
 int main(int argc, char *argv[])
 {
@@ -327,7 +256,6 @@ int main(int argc, char *argv[])
 
     // // Unknown section
     // we use full qualification because the dim ns contains too general names
-    pdal::Dimension::Id::Enum dim_to_use_as_z = pdal::Dimension::Id::Z;
 
     struct GLidarLayers layers;
     GLidarLayers_set_no_layers(&layers);
@@ -350,7 +278,6 @@ int main(int argc, char *argv[])
                                 class_layer_opt, rgb_layer_opt};
     int layer_values[4] = {layers.id_layer, layers.return_layer,
                            layers.class_layer, layers.rgb_layer};
-    check_layers_in_list_not_equal(layer_options, layer_values, 4);
 
     if (layers.id_layer)
         G_verbose_message(_("Storing generated point IDs as categories"
@@ -402,72 +329,7 @@ int main(int argc, char *argv[])
                       in_opt->answer);
     reader->setOptions(las_opts);
 
-    pdal::Stage * last_stage = reader;
-    pdal::ReprojectionFilter reprojection_filter;
-
-    // we reproject when requested regardless the input projection
-    if (reproject_flag->answer) {
-        G_message(_("Reprojecting the input to the location projection"));
-        char *proj_wkt = location_projection_as_wkt(false);
-        pdal::Options o4;
-        // TODO: try catch for user input error
-        if (input_srs_opt->answer)
-            o4.add<std::string>("in_srs", input_srs_opt->answer);
-        o4.add<std::string>("out_srs", proj_wkt);
-        reprojection_filter.setOptions(o4);
-        reprojection_filter.setInput(*reader);
-        last_stage = &reprojection_filter;
-    }
-
-    if (extract_ground_flag->answer || classify_ground_flag->answer) {
-        if (extract_ground_flag->answer)
-            G_message(_("Extracting ground points"));
-        if (classify_ground_flag->answer)
-            G_message(_("Classifying ground points"));
-        pdal::Options groundOptions;
-        groundOptions.add<double>("max_window_size",
-                                  atof(max_ground_window_opt->answer));
-        groundOptions.add<double>("slope",
-                                  atof(ground_slope_opt->answer));
-        groundOptions.add<double>("max_distance",
-                                  atof(max_ground_distance_opt->answer));
-        groundOptions.add<double>("initial_distance",
-                                  atof(init_ground_distance_opt->answer));
-        groundOptions.add<double>("cell_size",
-                                  atof(ground_cell_size_opt->answer));
-        groundOptions.add<bool>("classify",
-                                classify_ground_flag->answer);
-        groundOptions.add<bool>("extract",
-                                extract_ground_flag->answer);
-        groundOptions.add<bool>("approximate",
-                                approx_ground_flag->answer);
-        groundOptions.add<bool>("debug", false);
-        groundOptions.add<uint32_t>("verbose", 0);
-
-        // TODO: free this or change pointer type to shared
-        pdal::Stage * ground_stage(factory.createStage("filters.ground"));
-        if (!ground_stage)
-            G_fatal_error(_("Ground filter is not available"
-                            " (PDAL probably compiled without PCL)"));
-        ground_stage->setOptions(groundOptions);
-        ground_stage->setInput(*last_stage);
-        last_stage = ground_stage;
-    }
-
-    if (height_filter_flag->answer) {
-        // TODO: we should test with if (point_view->hasDim(Id::Classification))
-        // but we don't have the info yet
-        // TODO: free this or change pointer type to shared
-        pdal::Stage * height_stage(factory.createStage("filters.height"));
-        if (!height_stage)
-            G_fatal_error(_("Height above ground filter is not available"
-                            " (PDAL probably compiled without PCL)"));
-        height_stage->setInput(*last_stage);
-        last_stage = height_stage;
-    }
-
     pdal::PointTable point_table;
-    last_stage->prepare(point_table);
 
     // getting projection is possible only after prepare
     if (over_flag->answer) {
@@ -475,7 +337,7 @@ int main(int argc, char *argv[])
                               " that the projection of input matches"
                               " the location projection"));
     }
-    else if (!reproject_flag->answer) {
+    else if (!reproject_flag->answer) {  /* * /
         pdal::SpatialReference spatial_reference = reader->getSpatialReference();
         if (spatial_reference.empty())
             G_fatal_error(_("The input dataset has undefined projection"));
@@ -484,54 +346,12 @@ int main(int argc, char *argv[])
             getWKT(pdal::SpatialReference::eHorizontalOnly);
         bool proj_match = is_wkt_projection_same_as_loc(dataset_wkt.c_str());
         if (!proj_match)
-            wkt_projection_mismatch_report(dataset_wkt.c_str());
+            wkt_projection_mismatch_report(dataset_wkt.c_str());  /* */
     }
 
     // // Start the reading process
     G_important_message(_("Running PDAL algorithms..."));
-    pdal::PointViewSet point_view_set = last_stage->execute(point_table);
-    pdal::PointViewPtr point_view = *point_view_set.begin();
 
-    // TODO: test also z
-    // TODO: the falses for filters should be perhaps fatal error
-    // (bad input) or warning if filter was requested by the user
-
-    // update layers we are writing based on what is in the data
-    // update usage of our filters as well
-    if (point_view->hasDim(pdal::Dimension::Id::ReturnNumber) &&
-        point_view->hasDim(pdal::Dimension::Id::NumberOfReturns)) {
-        use_return_filter = true;
-    }
-    else {
-        if (layers.return_layer) {
-            layers.return_layer = 0;
-            G_warning(_("Cannot store return information because the"
-                        " input does not have a return dimensions"));
-        }
-        use_return_filter = false;
-    }
-
-    if (point_view->hasDim(pdal::Dimension::Id::Classification)) {
-        use_class_filter = true;
-    }
-    else {
-        if (layers.class_layer) {
-            layers.class_layer = 0;
-            G_warning(_("Cannot store class because the input"
-                        " does not have a classification dimension"));
-        }
-        use_class_filter = false;
-    }
-
-    if (!(point_view->hasDim(pdal::Dimension::Id::Red) &&
-          point_view->hasDim(pdal::Dimension::Id::Green) &&
-          point_view->hasDim(pdal::Dimension::Id::Blue))) {
-        if (layers.rgb_layer) {
-            layers.rgb_layer = 0;
-            G_warning(_("Cannot store RGB colors because the input"
-                        " does not have a RGB dimensions"));
-        }
-    }
 
     // // Create output Vector Map
     G_important_message(_("Scanning points..."));
@@ -543,82 +363,15 @@ int main(int argc, char *argv[])
         G_fatal_error(_("Unable to create vector map <%s>"), out_opt->answer);
     Vect_hist_command(&output_vector);
 
-    // height is stored as a new attribute
-    if (height_filter_flag->answer) {
-        dim_to_use_as_z = point_view->layout()->findDim("Height");
-        if (dim_to_use_as_z == pdal::Dimension::Id::Unknown)
-            G_fatal_error(_("Cannot identify the height dimension"
-                            " (probably something changed in PDAL)"));
-    }
-
-    // this is just for sure, we test the individual dimensions before
-    // TODO: should we test Z explicitly as well?
-    if (!point_view->hasDim(dim_to_use_as_z))
-        G_fatal_error(_("Dataset doesn't have requested dimension '%s'"
-                        " with ID %d (possibly a programming error)"),
-                      pdal::Dimension::name(dim_to_use_as_z).c_str(),
-                      dim_to_use_as_z);
 
     struct line_pnts *points = Vect_new_line_struct();
     struct line_cats *cats = Vect_new_cats_struct();
-
-    gpoint_count n_outside = 0;
-    gpoint_count zrange_filtered = 0;
-    gpoint_count n_filtered = 0;
-    gpoint_count n_class_filtered = 0;
 
     int cat = 1;
     bool cat_max_reached = false;
 
     // // Main Processing Loop
-    for (pdal::PointId idx = 0; idx < point_view->size(); ++idx) {
-        // TODO: avoid duplication of reading the attributes here and when writing if needed
-        double x = point_view->getFieldAs<double>(pdal::Dimension::Id::X, idx);
-        double y = point_view->getFieldAs<double>(pdal::Dimension::Id::Y, idx);
-        double z = point_view->getFieldAs<double>(dim_to_use_as_z, idx);
 
-        if (use_spatial_filter) {
-            if (x < xmin || x > xmax || y < ymin || y > ymax) {
-                n_outside++;
-                continue;
-            }
-        }
-        if (use_zrange) {
-            if (z < zrange_min || z > zrange_max) {
-                zrange_filtered++;
-                continue;
-            }
-        }
-        if (use_return_filter) {
-            int return_n =
-                point_view->getFieldAs<int>(pdal::Dimension::Id::ReturnNumber, idx);
-            int n_returns =
-                point_view->getFieldAs<int>(pdal::Dimension::Id::NumberOfReturns, idx);
-            if (return_filter_is_out
-                (&return_filter_struct, return_n, n_returns)) {
-                n_filtered++;
-                continue;
-            }
-        }
-        if (use_class_filter) {
-            int point_class =
-                point_view->getFieldAs<int>(pdal::Dimension::Id::Classification, idx);
-            if (class_filter_is_out(&class_filter, point_class)) {
-                n_class_filtered++;
-                continue;
-            }
-        }
-        pdal_point_to_grass(&output_vector, points, cats, point_view,
-                            idx, &layers, cat, dim_to_use_as_z);
-        if (layers.id_layer) {
-            // TODO: perhaps it would be better to use the max cat afterwards
-            if (cat == GV_CAT_MAX) {
-                cat_max_reached = true;
-                break;
-            }
-            cat++;
-        }
-    }
     // not building topology by default
     Vect_close(&output_vector);
 }
