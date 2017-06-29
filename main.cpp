@@ -68,15 +68,6 @@ int main(int argc, char *argv[])
         G_fatal_error(_("Input file <%s> does not exist"), options->inFile->answer);
     }
 
-    // // Unknown section
-    // we use full qualification because the dim ns contains too general names
-
-    struct GLidarLayers layers;
-    GLidarLayers_set_no_layers(&layers);
-    layers.id_layer = 1;
-
-
-
     double xmin = 0;
     double ymin = 0;
     double xmax = 0;
