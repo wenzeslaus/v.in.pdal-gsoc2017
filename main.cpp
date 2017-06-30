@@ -1,7 +1,8 @@
-#include <pdal/PointTable.hpp>
-#include <pdal/PointView.hpp>
+// #include <pdal/PointTable.hpp>
+// #include <pdal/PointView.hpp>
 #include <pdal/StageFactory.hpp>
-#include <pdal/Options.hpp>
+// #include <pdal/Options.hpp>
+#include <pdal/PipelineExecutor.hpp>
 
 extern "C"
 {
@@ -17,6 +18,13 @@ extern "C"
 #include "projection.h"
 #include "filters.h"
 }
+
+#include <iostream>
+#include <sstream>
+#include <string>
+#include "pipelinejson.hpp"
+
+using namespace std;
 
 #ifdef HAVE_LONG_LONG_INT
 typedef unsigned long long gpoint_count;
@@ -42,6 +50,23 @@ CommandOptions* setup_all_options() {
     allOpts->outFile = G_define_standard_option(G_OPT_V_OUTPUT);
 
     return allOpts;
+}
+
+string basicReaderWriter_(char* inFile, char* outFile){
+    std::ostringstream s;
+    s <<
+         "{" <<
+          " \"pipeline\":[" <<
+
+            "\"" << inFile << "\"," <<
+
+         "\"" << outFile << "\"" <<
+
+          " ]" <<
+         "}";
+
+    return s.str();
+
 }
 
 int main(int argc, char *argv[])
@@ -93,9 +118,17 @@ int main(int argc, char *argv[])
 
     pdal::PointTable point_table;
 
-
     // // Start the reading process
     G_important_message(_("Running PDAL algorithms..."));
+    char* inFile = options->inFile->answer;
+    char* outFile = options->outFile->answer;  /* */
+    std::string pipeline_json =
+            //pipelineJson::
+            basicReaderWriter_(inFile,outFile);
+
+    cout << pipeline_json << endl;  //diagnostic only
+    auto pipeline = new pdal::PipelineExecutor(pipeline_json);
+    pipeline->execute();
 
 
     // // Create output Vector Map
