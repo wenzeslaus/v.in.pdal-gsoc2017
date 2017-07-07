@@ -11,13 +11,6 @@ extern "C"
 #include <grass/gprojects.h>
 #include <grass/glocale.h>
 }
-/*
-extern "C"
-{
-#include "lidar.h"
-#include "projection.h"
-#include "filters.h"
-} */
 
 #include <iostream>
 #include <sstream>
