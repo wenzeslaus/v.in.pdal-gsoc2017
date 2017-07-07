@@ -11,13 +11,13 @@ extern "C"
 #include <grass/gprojects.h>
 #include <grass/glocale.h>
 }
-
+/*
 extern "C"
 {
 #include "lidar.h"
 #include "projection.h"
 #include "filters.h"
-}
+} */
 
 #include <iostream>
 #include <sstream>
@@ -50,23 +50,6 @@ CommandOptions* setup_all_options() {
     allOpts->outFile = G_define_standard_option(G_OPT_V_OUTPUT);
 
     return allOpts;
-}
-
-string basicReaderWriter_(char* inFile, char* outFile){
-    std::ostringstream s;
-    s <<
-         "{" <<
-          " \"pipeline\":[" <<
-
-            "\"" << inFile << "\"," <<
-
-         "\"" << outFile << "\"" <<
-
-          " ]" <<
-         "}";
-
-    return s.str();
-
 }
 
 int main(int argc, char *argv[])
@@ -123,8 +106,7 @@ int main(int argc, char *argv[])
     char* inFile = options->inFile->answer;
     char* outFile = options->outFile->answer;  /* */
     std::string pipeline_json =
-            //pipelineJson::
-            basicReaderWriter_(inFile,outFile);
+            pipelineJson::basicReaderWriter(inFile,outFile);
 
     cout << pipeline_json << endl;  //diagnostic only
     auto pipeline = new pdal::PipelineExecutor(pipeline_json);

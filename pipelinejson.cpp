@@ -10,7 +10,7 @@ pipelineJson::pipelineJson()
 }
 
 
-string basicReaderWriter(char* inFile, char* outFile){
+string pipelineJson::basicReaderWriter(char* inFile, char* outFile){
     std::ostringstream s;
     s <<
          "{" <<
