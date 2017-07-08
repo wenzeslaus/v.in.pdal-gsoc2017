@@ -99,9 +99,10 @@ int main(int argc, char *argv[])
     char* inFile = options->inFile->answer;
     char* outFile = options->outFile->answer;  /* */
     std::string pipeline_json =
-            pipelineJson::basicReaderWriter(inFile,outFile);
+            pipelineJson::basicVectorMapReaderWriter(inFile,outFile);
 
     cout << pipeline_json << endl;  //diagnostic only
+    return 0;
     auto pipeline = new pdal::PipelineExecutor(pipeline_json);
     pipeline->execute();
 
