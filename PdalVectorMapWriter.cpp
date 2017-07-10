@@ -1,10 +1,17 @@
 // PdalVectorMapWriter.cpp
 // Adapted from https://www.pdal.io/tutorial/writing-writer.html#id1
 
+#include <iostream>
+#include <sstream>
+#include <string>
+
+
 #include "PdalVectorMapWriter.hpp"
 #include <pdal/pdal_macros.hpp>
 #include <pdal/util/FileUtils.hpp>
 #include <pdal/util/ProgramArgs.hpp>
+
+using namespace std;
 
 namespace pdal
 {
@@ -42,6 +49,7 @@ namespace pdal
 
   void PdalVectorMapWriter::initialize()
   {
+    cout << "initialize" << endl;   return;
     m_stream = FileStreamPtr(FileUtils::createFile(m_filename, true),
       FileStreamDeleter());
     if (!m_stream)
@@ -55,6 +63,7 @@ namespace pdal
 
   void PdalVectorMapWriter::ready(PointTableRef table)
   {
+    cout << "ready" << endl;    return;
     m_stream->precision(m_precision);
     *m_stream << std::fixed;
 
@@ -74,6 +83,7 @@ namespace pdal
 
   void PdalVectorMapWriter::write(PointViewPtr view)
   {
+      cout << "write" << endl;  return;
       for (PointId idx = 0; idx < view->size(); ++idx)
       {
         double x = view->getFieldAs<double>(Dimension::Id::X, idx);
@@ -93,6 +103,7 @@ namespace pdal
 
   void PdalVectorMapWriter::done(PointTableRef)
   {
+    cout << "done" << endl;   return;
     m_stream.reset();
   }
 

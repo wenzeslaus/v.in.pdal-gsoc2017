@@ -74,37 +74,23 @@ int main(int argc, char *argv[])
     double xmax = 0;
     double ymax = 0;
 
-    // // Prepare PDAL to read input file
-    pdal::StageFactory factory;
-    std::string pdal_read_driver = factory.inferReaderDriver(options->inFile->answer);
-    if (pdal_read_driver.empty())
-        G_fatal_error("Cannot determine input file type of <%s>",
-                      options->inFile->answer);
-
-    pdal::Option las_opt("filename", options->inFile->answer);
-    pdal::Options las_opts;
-    las_opts.add(las_opt);
-    // TODO: free reader
-    // using plain pointer because we need to keep the last stage pointer
-    pdal::Stage * reader = factory.createStage(pdal_read_driver);
-    if (!reader)
-        G_fatal_error("PDAL reader creation failed, a wrong format of <%s>",
-                      options->inFile->answer);
-    reader->setOptions(las_opts);
-
-    pdal::PointTable point_table;
-
-    // // Start the reading process
-    G_important_message(_("Running PDAL algorithms..."));
+    // // Set up the pipeline
+    G_important_message(_("Setting up the PDAL pipeline..."));
     char* inFile = options->inFile->answer;
     char* outFile = options->outFile->answer;  /* */
     std::string pipeline_json =
             pipelineJson::basicVectorMapReaderWriter(inFile,outFile);
 
     cout << pipeline_json << endl;  //diagnostic only
-    return 0;
+    cout << endl;
+    G_important_message(_("Running the pipeline ..."));
     auto pipeline = new pdal::PipelineExecutor(pipeline_json);
-    pipeline->execute();
+    cout << "is valid?  " << pipeline->validate() << endl;
+
+    // // Start the reading process
+    //pipeline->execute();
+    cout << "done" << endl;
+    return 0;
 
 
     // // Create output Vector Map
