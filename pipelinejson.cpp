@@ -41,12 +41,7 @@ string pipelineJson::basicVectorMapReaderWriter(char* inFile, char* outFile){
          "{" <<
          " \"pipeline\":[" << endl <<
 
-         "   " << enquote(inFile) << "," << endl <<
-
-         "{" << endl <<
-         "   " << enquote("type") << ":" << enquote("writers.PdalVectorMapWriter") << "," << endl <<
-         "   " << enquote("filename") << ":" << enquote(outFile) << endl <<
-         "}" << endl <<
+         "   " << enquote(inFile) << //"," << endl <<
 
           " ]" << endl <<
          "}";
