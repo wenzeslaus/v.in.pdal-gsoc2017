@@ -3,6 +3,7 @@
 #include <pdal/StageFactory.hpp>
 // #include <pdal/Options.hpp>
 #include <pdal/PipelineExecutor.hpp>
+#include <pdal/DimUtil.hpp>
 
 extern "C"
 {
@@ -15,6 +16,7 @@ extern "C"
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <typeinfo>
 #include "pipelinejson.hpp"
 
 using namespace std;
@@ -83,14 +85,35 @@ int main(int argc, char *argv[])
 
     cout << pipeline_json << endl;  //diagnostic only
     cout << endl;
+
     G_important_message(_("Running the pipeline ..."));
     auto pipeline = new pdal::PipelineExecutor(pipeline_json);
+    //auto manager = new pdal::PipelineManager();
+
     cout << "is valid?  " << pipeline->validate() << endl;
 
     // // Start the reading process
-    //pipeline->execute();
+    uint64_t pointCount = pipeline->execute();
+    //cout << pointCount << endl;
+    pdal::PipelineManager &mgr = pipeline->getManager();
+    //pdal::FixedPointTable tbl = new pdal::FixedPointTable(mgr.pointTable());
+    auto views = mgr.views();
+    for (auto const& view : views){
+        cout << pointCount << endl;
+        cout << typeid(view).name() << endl;
+        for (uint64_t idx = 0; idx < pointCount; ++idx) {
+            //auto aPt = view->getPoint(idx);
+            double x = view->getFieldAs<double>(pdal::Dimension::Id::X, idx);
+            double y = view->getFieldAs<double>(pdal::Dimension::Id::Y, idx);
+            double z = view->getFieldAs<double>(pdal::Dimension::Id::Z, idx);
+            cout << x << ", " << y << ", " << z << endl;
+        }
+    }
+    //auto variable = pdal::PointView(mgr.pointTable());
     cout << "done" << endl;
     return 0;
+    //manager->addReader();
+    //manager->execute();
 
 
     // // Create output Vector Map
