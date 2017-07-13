@@ -19,6 +19,8 @@ extern "C"
 #include <typeinfo>
 #include "pipelinejson.hpp"
 
+
+
 using namespace std;
 
 #ifdef HAVE_LONG_LONG_INT
@@ -45,6 +47,40 @@ CommandOptions* setup_all_options() {
     allOpts->outFile = G_define_standard_option(G_OPT_V_OUTPUT);
 
     return allOpts;
+}
+
+struct Map_info Map;
+struct line_pnts *Points;
+struct line_cats *Cats;
+
+void create_map(string outFileName) {
+    char buf[2000];
+    //const char *outFile = outFileName.c_str();
+    sprintf(buf, "%s", outFileName.c_str());
+    /* strip any @mapset from vector output name */
+    G_find_vector(buf, G_mapset());
+
+    if(Vect_open_new(&Map, outFileName.c_str(), 1) < 0)
+        G_fatal_error(_("message"));
+    Vect_hist_command(&Map);
+
+    Points = Vect_new_line_struct();
+    Cats = Vect_new_cats_struct();
+}
+
+void add_point(double x, double y, double z) {
+    Vect_reset_line(Points);
+    Vect_reset_cats(Cats);
+
+    Vect_append_point(Points, x, y, z);
+
+    Vect_write_line(&Map, GV_POINT, Points, Cats);
+}
+
+
+void write_and_close_map() {
+    Vect_build(&Map);
+    Vect_close(&Map);
 }
 
 int main(int argc, char *argv[])
@@ -97,44 +133,34 @@ int main(int argc, char *argv[])
     //cout << pointCount << endl;
     pdal::PipelineManager &mgr = pipeline->getManager();
     //pdal::FixedPointTable tbl = new pdal::FixedPointTable(mgr.pointTable());
+
+    create_map(outFile);
+
     auto views = mgr.views();
     for (auto const& view : views){
-        cout << pointCount << endl;
-        cout << typeid(view).name() << endl;
+        cout << "Number of Points: " << pointCount << endl;
+        // cout << typeid(view).name() << endl;
         for (uint64_t idx = 0; idx < pointCount; ++idx) {
             //auto aPt = view->getPoint(idx);
             double x = view->getFieldAs<double>(pdal::Dimension::Id::X, idx);
             double y = view->getFieldAs<double>(pdal::Dimension::Id::Y, idx);
             double z = view->getFieldAs<double>(pdal::Dimension::Id::Z, idx);
-            cout << x << ", " << y << ", " << z << endl;
+
+            add_point(x, y, z);
+
+            // cout << x << ", " << y << ", " << z << endl;
         }
+        break;
     }
     //auto variable = pdal::PointView(mgr.pointTable());
+
+    write_and_close_map();
     cout << "done" << endl;
     return 0;
-    //manager->addReader();
-    //manager->execute();
 
 
-    // // Create output Vector Map
-    G_important_message(_("Scanning points..."));
-    struct Map_info output_vector;
-
-    // the overwrite warning comes quite late in the execution
-    // but that's good enough
-    if (Vect_open_new(&output_vector, options->outFile->answer, 1) < 0)
-        G_fatal_error(_("Unable to create vector map <%s>"), options->outFile->answer);
-    Vect_hist_command(&output_vector);
+    // int cat = 1;
+    // bool cat_max_reached = false;
 
 
-    struct line_pnts *points = Vect_new_line_struct();
-    struct line_cats *cats = Vect_new_cats_struct();
-
-    int cat = 1;
-    bool cat_max_reached = false;
-
-    // // Main Processing Loop
-
-    // not building topology by default
-    Vect_close(&output_vector);
 }
