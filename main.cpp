@@ -3,7 +3,6 @@
 #include <pdal/StageFactory.hpp>
 // #include <pdal/Options.hpp>
 #include <pdal/PipelineExecutor.hpp>
-#include <pdal/DimUtil.hpp>
 
 extern "C"
 {
@@ -18,7 +17,6 @@ extern "C"
 #include <string>
 #include <typeinfo>
 #include "pipelinejson.hpp"
-
 
 
 using namespace std;
